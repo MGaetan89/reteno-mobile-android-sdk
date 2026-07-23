@@ -18,6 +18,7 @@ import com.reteno.core.domain.controller.ScreenTrackingController
 import com.reteno.core.domain.model.ecom.EcomEvent
 import com.reteno.core.domain.model.event.Event
 import com.reteno.core.domain.model.event.LifecycleTrackingOptions
+import com.reteno.core.domain.model.interaction.InteractionAction
 import com.reteno.core.domain.model.interaction.InteractionStatus
 import com.reteno.core.domain.model.logevent.RetenoLogEvent
 import com.reteno.core.domain.model.user.User
@@ -27,8 +28,12 @@ import com.reteno.core.lifecycle.RetenoActivityHelper
 import com.reteno.core.lifecycle.ScreenTrackingConfig
 import com.reteno.core.permission.AndroidPermissionChecker
 import com.reteno.core.permission.PermissionActivityDelegate
-import com.reteno.core.util.*
 import com.reteno.core.util.Constants.BROADCAST_ACTION_PUSH_PERMISSION_CHANGED
+import com.reteno.core.util.Logger
+import com.reteno.core.util.Procedure
+import com.reteno.core.util.Util
+import com.reteno.core.util.isOsVersionSupported
+import com.reteno.core.util.queryBroadcastReceivers
 import com.reteno.core.view.iam.IamView
 import com.reteno.core.view.iam.callback.InAppLifecycleCallback
 import kotlinx.coroutines.CompletableDeferred
@@ -521,6 +526,27 @@ class RetenoInternalImpl(
                 }
             }
         }
+
+    override fun recordInteractionAction(id: String, action: InteractionAction, forcePush: Boolean) {
+        runAfterInit {
+            if (!isOsVersionSupported()) {
+                return@runAfterInit
+            }
+            /*@formatter:off*/ Logger.i(TAG, "recordInteractionAction(): ", "action = [" , action , "]", "forcePush = [", forcePush , "]")
+            /*@formatter:on*/
+            syncScope.launch(ioDispatcher) {
+                try {
+                    interactionController.onInteractionClickAction(id, action)
+                    if (forcePush) {
+                        forcePushData()
+                    }
+                } catch (ex: Throwable) {
+                    /*@formatter:off*/ Logger.e(TAG, "recordInteractionAction(): action = [$action]", ex)
+                    /*@formatter:on*/
+                }
+            }
+        }
+    }
 
     override fun canPresentMessages(): Boolean {
         if (!isOsVersionSupported()) {
